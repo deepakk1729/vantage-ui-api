@@ -1,0 +1,48 @@
+
+# ── Dependencies ──────────────────────────────────────────────────────────────
+node_modules/
+
+# ── Build output ──────────────────────────────────────────────────────────────
+dist/
+
+# ── Playwright ────────────────────────────────────────────────────────────────
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+/playwright/.auth/
+
+# ── Cucumber / BDD reports ────────────────────────────────────────────────────
+/reports/
+
+# ── Local secrets and environment files ──────────────────────────────────────
+.env
+.env.local
+.env.*.local
+
+# ── Authenticated session state (regenerate via `npm run auth`) ───────────────
+/src/auth/storageSession.json
+
+# ── Transient mid-run re-auth lock (single-flight session refresh) ────────────
+/src/auth/.reauth.lock
+
+# ── Agent planning files (local workspace only) ───────────────────────────────
+/.plans/
+
+# ── Playwright MCP local snapshots / logs ────────────────────────────────────
+/.playwright-mcp/
+
+# ── Test case CSVs (local workspace only) ────────────────────────────────────
+/test-cases/*.csv
+
+# ── BDD agent time-tracking temp files ───────────────────────────────────────
+*.tmp
+
+# ── Log files ─────────────────────────────────────────────────────────────────
+*.log
+logs/
+
+# ── OS / editor ───────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/settings.json

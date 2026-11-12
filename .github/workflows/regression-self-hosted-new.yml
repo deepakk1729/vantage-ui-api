@@ -1,0 +1,419 @@
+name: BDD Tests - Self-Hosted Runner (NEW)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  schedule:
+    - cron: '30 5 * * 5'
+
+env:
+  CI: true
+  HEADLESS: 1
+  NODE_VERSION: lts/*
+
+jobs:
+  # Biweekly gate: scheduled runs only on alternate Fridays (from 2026-06-26); manual/push/PR always run.
+  gate:
+    name: Biweekly Schedule Gate
+    timeout-minutes: 5
+    runs-on: kd-actions-runner
+    outputs:
+      should_run: ${{ steps.check.outputs.should_run }}
+
+    steps:
+      - name: Decide whether this run should proceed
+        id: check
+        shell: bash
+        run: |
+          # Non-schedule triggers (workflow_dispatch / push / pull_request) always run.
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "Trigger '${{ github.event_name }}' → always run"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Biweekly cadence on alternate Fridays, anchored at 2026-06-26 (a Friday).
+          anchor=$(date -u -d '2026-06-26' +%s)
+          today=$(date -u -d "$(date -u +%Y-%m-%d)" +%s)
+          diff_days=$(( (today - anchor) / 86400 ))
+          echo "Today (UTC): $(date -u +%Y-%m-%d) | days since 2026-06-26: $diff_days"
+
+          if [ "$diff_days" -lt 0 ]; then
+            echo "Before anchor Friday → skip"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          weeks=$(( diff_days / 7 ))
+          if [ $(( weeks % 2 )) -eq 0 ]; then
+            echo "On-week (week $weeks since anchor) → RUN"
+            echo "should_run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Off-week (week $weeks since anchor) → SKIP"
+            echo "should_run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # Validate, generate the Okta session in-job, run both BDD suites sequentially,
+  # upload reports+logs after each suite, then wipe the session.
+  bdd-regression:
+    name: BDD Regression Tests
+    # Two full suites back-to-back; generous cap to avoid mid-run timeouts on slow staging.
+    timeout-minutes: 360
+    runs-on: kd-actions-runner
+    needs: gate
+    if: ${{ needs.gate.outputs.should_run == 'true' }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Print runner info
+        run: |
+          echo "🖥️  Runner: ${{ runner.name }}"
+          echo "📍 OS: ${{ runner.os }}"
+          echo "⏰ Time: $(date)"
+          uname -a
+
+      # ── Validation gates (fail-fast, before any auth/tests) ──────────────
+      - name: Validate required secrets
+        run: |
+          missing=()
+          [ -z "${{ secrets.BASE_URL }}" ]          && missing+=("BASE_URL")
+          [ -z "${{ secrets.API_BASE_URL }}" ]      && missing+=("API_BASE_URL")
+          [ -z "${{ secrets.OKTA_USERNAME }}" ]     && missing+=("OKTA_USERNAME")
+          [ -z "${{ secrets.OKTA_PASSWORD }}" ]     && missing+=("OKTA_PASSWORD")
+          [ -z "${{ secrets.X_API_KEY }}" ]         && missing+=("X_API_KEY")
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "❌ Missing GitHub Secrets: ${missing[*]}"
+            exit 1
+          fi
+          echo "✅ All required secrets validated"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install system dependencies for Chromium (Ubuntu 24.04)
+        run: |
+          sudo apt-get update -qq || true
+          sudo apt-get install -y \
+            libnspr4 \
+            libnss3 \
+            libxss1 \
+            libgbm1 \
+            libxshmfence1 \
+            libatk-bridge2.0-0 \
+            libgtk-3-0 \
+            libasound2t64 \
+            libpulse0 \
+            libxcb-dri3-0 \
+            || true
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v3
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-${{ hashFiles('**/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-playwright-
+
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
+
+      - name: Verify Playwright setup
+        run: npx playwright --version
+
+      - name: Validate TypeScript
+        run: npx tsc --noEmit
+
+      - name: Validate configurations
+        run: |
+          npx ts-node -e "import('./playwright.config').then(_ => console.log('✓ playwright.config.ts valid'))"
+          node -e "const c = require('./cucumber.js'); console.log('✓ cucumber.js valid')"
+
+      # ── Environment & auth ───────────────────────────────────────────────
+      - name: Generate .env
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+          OKTA_USERNAME: ${{ secrets.OKTA_USERNAME }}
+          OKTA_PASSWORD: ${{ secrets.OKTA_PASSWORD }}
+          X_API_KEY: ${{ secrets.X_API_KEY }}
+        run: |
+          cat > .env << EOF
+          BASE_URL=$BASE_URL
+          API_BASE_URL=$API_BASE_URL
+          OKTA_USERNAME=$OKTA_USERNAME
+          OKTA_PASSWORD=$OKTA_PASSWORD
+          X_API_KEY=$X_API_KEY
+          LOG_LEVEL=info
+          CI=true
+          HEADLESS=1
+          EOF
+
+      - name: Resolve app hostnames via CloudFront
+        env:
+          BASE_URL: ${{ secrets.BASE_URL }}
+          API_BASE_URL: ${{ secrets.API_BASE_URL }}
+        run: |
+          BASE_HOSTNAME=$(echo "$BASE_URL" | sed 's|https\?://||' | sed 's|/.*||')
+          API_HOSTNAME=$(echo "$API_BASE_URL" | sed 's|https\?://||' | sed 's|/.*||')
+          CF_IP=$(nslookup d1cimx9n1s22m4.cloudfront.net 8.8.8.8 2>/dev/null | grep -A1 'Name:' | grep 'Address:' | grep -E -o '[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+          if [ -z "$CF_IP" ]; then
+            echo "⚠️  CloudFront IP resolution skipped (DNS unavailable), proceeding without hosts mapping"
+          else
+            echo "$CF_IP $BASE_HOSTNAME" | sudo tee -a /etc/hosts
+            echo "✅ Mapped $BASE_HOSTNAME → $CF_IP"
+            if [ "$API_HOSTNAME" != "$BASE_HOSTNAME" ]; then
+              echo "$CF_IP $API_HOSTNAME" | sudo tee -a /etc/hosts
+              echo "✅ Mapped $API_HOSTNAME → $CF_IP"
+            fi
+          fi
+
+      # Generates storageSession.json + BEARER_TOKEN in .env (no artifacts).
+      - name: Generate CI session (Okta login)
+        run: npm run ci:auth
+
+      - name: Upload auth failure screenshot
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: auth-failure-screenshot
+          path: ci-auth-failure.png
+          retention-days: 3
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # SUPERADMIN SUITE
+      # ═══════════════════════════════════════════════════════════════════════
+
+      - name: Run superadmin suite
+        id: superadmin
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p reports logs
+          if npm run test:bdd:superadmin 2>&1 | tee logs/superadmin.log; then
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload superadmin reports & logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: superadmin-artifacts
+          path: |
+            reports/superadmin_cucumber.*
+            logs/superadmin.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # BUSINESS LEADER SUITE
+      # ═══════════════════════════════════════════════════════════════════════
+
+      - name: Run business-leader suite
+        id: business_leader
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p reports logs
+          if npm run test:bdd:business-leader 2>&1 | tee logs/business-leader.log; then
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload business-leader reports & logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: business-leader-artifacts
+          path: |
+            reports/business-leader_cucumber.*
+            logs/business-leader.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # TOPIC MANAGER SUITE
+      # ═══════════════════════════════════════════════════════════════════════
+
+      - name: Run topic-manager suite
+        id: topic_manager
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p reports logs
+          if npm run test:bdd:topic-manager 2>&1 | tee logs/topic-manager.log; then
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload topic-manager reports & logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: topic-manager-artifacts
+          path: |
+            reports/topic-manager_cucumber.*
+            logs/topic-manager.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # TEAM MANAGER SUITE
+      # ═══════════════════════════════════════════════════════════════════════
+
+      - name: Run team-manager suite
+        id: team_manager
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p reports logs
+          if npm run test:bdd:team-manager 2>&1 | tee logs/team-manager.log; then
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload team-manager reports & logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: team-manager-artifacts
+          path: |
+            reports/team-manager_cucumber.*
+            logs/team-manager.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # ANALYST SUITE
+      # ═══════════════════════════════════════════════════════════════════════
+
+      - name: Run analyst suite
+        id: analyst
+        continue-on-error: true
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p reports logs
+          if npm run test:bdd:analyst 2>&1 | tee logs/analyst.log; then
+            echo "result=PASS" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=FAIL" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload analyst reports & logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: analyst-artifacts
+          path: |
+            reports/analyst_cucumber.*
+            logs/analyst.log
+          if-no-files-found: ignore
+          retention-days: 30
+
+      # ═══════════════════════════════════════════════════════════════════════
+      # COMBINED SUMMARY
+      # ═══════════════════════════════════════════════════════════════════════
+
+      - name: Write job summary
+        if: always()
+        shell: bash
+        run: |
+          # Parse "X scenarios (Y passed, Z failed, W skipped)" from a Cucumber log.
+          # Returns passed|failed|skipped — all zeros when the file is missing.
+          parse_counts() {
+            local log="$1"
+            if [ ! -f "$log" ]; then echo "0|0|0"; return; fi
+            local line
+            line=$(grep -E "^[0-9]+ scenarios" "$log" | tail -1)
+            if [ -z "$line" ]; then echo "0|0|0"; return; fi
+            local p f s
+            p=$(echo "$line"  | grep -oE '[0-9]+ passed'  | grep -oE '^[0-9]+' || true)
+            f=$(echo "$line"  | grep -oE '[0-9]+ failed'  | grep -oE '^[0-9]+' || true)
+            s=$(echo "$line"  | grep -oE '[0-9]+ skipped' | grep -oE '^[0-9]+' || true)
+            echo "${p:-0}|${f:-0}|${s:-0}"
+          }
+
+          sa=$(parse_counts  logs/superadmin.log)
+          bl=$(parse_counts  logs/business-leader.log)
+          tm=$(parse_counts  logs/topic-manager.log)
+          tem=$(parse_counts logs/team-manager.log)
+          an=$(parse_counts  logs/analyst.log)
+
+          IFS='|' read -r sa_p  sa_f  sa_s  <<< "$sa"
+          IFS='|' read -r bl_p  bl_f  bl_s  <<< "$bl"
+          IFS='|' read -r tm_p  tm_f  tm_s  <<< "$tm"
+          IFS='|' read -r tem_p tem_f tem_s <<< "$tem"
+          IFS='|' read -r an_p  an_f  an_s  <<< "$an"
+
+          total_p=$(( sa_p  + bl_p  + tm_p  + tem_p  + an_p  ))
+          total_f=$(( sa_f  + bl_f  + tm_f  + tem_f  + an_f  ))
+          total_s=$(( sa_s  + bl_s  + tm_s  + tem_s  + an_s  ))
+
+          {
+            echo "### BDD Scenario Results"
+            echo ""
+            echo "| Role | Passed | Failed | Skipped |"
+            echo "|------|-------:|-------:|--------:|"
+            echo "| superadmin      | $sa_p  | $sa_f  | $sa_s  |"
+            echo "| business-leader | $bl_p  | $bl_f  | $bl_s  |"
+            echo "| topic-manager   | $tm_p  | $tm_f  | $tm_s  |"
+            echo "| team-manager    | $tem_p | $tem_f | $tem_s |"
+            echo "| analyst         | $an_p  | $an_f  | $an_s  |"
+            echo "| **Total**       | **$total_p** | **$total_f** | **$total_s** |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          # Overall result used by the Teams notification below.
+          if [ "$total_f" -gt 0 ]; then
+            echo "SUITE_RESULT=FAIL" >> "$GITHUB_ENV"
+          else
+            echo "SUITE_RESULT=PASS" >> "$GITHUB_ENV"
+          fi
+
+      # Self-hosted runner reuses the workspace — wipe session/token regardless of outcome.
+      - name: Clean up session & token files
+        if: always()
+        run: |
+          rm -f .env src/auth/storageSession.json bearer-token.txt src/auth/.reauth.lock
+          echo "🧹 Removed .env, storageSession.json, bearer-token.txt, .reauth.lock"
+
+      # Teams Notification
+      # - name: Notify Teams
+      #   if: always()
+      #   shell: bash
+      #   run: |
+      #     # FAILED if infra steps failed (job.status) OR either suite itself failed
+      #     # (SUITE_RESULT — set by the summary step; empty if we never got that far).
+      #     if [ "${{ job.status }}" != "success" ] || [ "$SUITE_RESULT" = "FAIL" ]; then
+      #       STATUS="FAILED"
+      #     else
+      #       STATUS="SUCCESS"
+      #     fi
+
+      #     curl -sS -X POST "${{ secrets.POWER_AUTOMATE_URL }}" \
+      #       -H "Content-Type: application/json" \
+      #       -d '{
+      #         "status":"'"$STATUS"'",
+      #         "repository":"${{ github.repository }}",
+      #         "branch":"${{ github.ref_name }}",
+      #         "actor":"${{ github.actor }}",
+      #         "runUrl":"https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+      #       }'

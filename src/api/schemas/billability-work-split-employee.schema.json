@@ -1,0 +1,75 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BillabilityWorkSplitEmployee",
+  "type": "object",
+  "required": ["allBillabilityMap", "allBillabilityTotal", "manualAdjustment", "totalEmployees", "page", "pageSize", "hasNext"],
+  "additionalProperties": false,
+  "definitions": {
+    "monthNode": {
+      "type": "object",
+      "required": ["bd", "cdBillability", "clientBillability", "clientChgs", "investment", "investmentFund", "other", "theoCapChgs"],
+      "additionalProperties": false,
+      "properties": {
+        "bd": { "type": "number" },
+        "cdBillability": { "type": "number" },
+        "clientBillability": { "type": "number" },
+        "clientChgs": { "type": "number" },
+        "investment": { "type": "number" },
+        "investmentFund": { "type": "number" },
+        "other": { "type": "number" },
+        "theoCapChgs": { "type": "number" },
+        "paKey": { "type": "string" }
+      }
+    },
+    "employeeNode": {
+      "type": "object",
+      "required": ["employeeName", "children", "bd", "cdBillability", "clientBillability", "clientChgs", "investment", "investmentFund", "other", "theoCapChgs"],
+      "additionalProperties": false,
+      "properties": {
+        "employeeName": { "type": "string" },
+        "children": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/monthNode" }
+        },
+        "bd": { "type": "number" },
+        "cdBillability": { "type": "number" },
+        "clientBillability": { "type": "number" },
+        "clientChgs": { "type": "number" },
+        "investment": { "type": "number" },
+        "investmentFund": { "type": "number" },
+        "other": { "type": "number" },
+        "theoCapChgs": { "type": "number" },
+        "paKey": { "type": "string" }
+      }
+    },
+    "totals": {
+      "type": "object",
+      "required": ["bd", "cdBillability", "clientBillability", "clientChgs", "investment", "investmentFund", "other", "theoCapChgs"],
+      "additionalProperties": false,
+      "properties": {
+        "bd": { "type": "number" },
+        "cdBillability": { "type": "number" },
+        "clientBillability": { "type": "number" },
+        "clientChgs": { "type": "number" },
+        "investment": { "type": "number" },
+        "investmentFund": { "type": "number" },
+        "other": { "type": "number" },
+        "theoCapChgs": { "type": "number" }
+      }
+    }
+  },
+  "properties": {
+    "allBillabilityMap": {
+      "type": "object",
+      "additionalProperties": { "$ref": "#/definitions/employeeNode" }
+    },
+    "allBillabilityTotal": { "$ref": "#/definitions/totals" },
+    "manualAdjustment": {
+      "oneOf": [{ "type": "null" }, { "$ref": "#/definitions/totals" }]
+    },
+    "totalEmployees": { "type": "integer" },
+    "page": { "type": "integer" },
+    "pageSize": { "type": "integer" },
+    "hasNext": { "type": "boolean" }
+  }
+}

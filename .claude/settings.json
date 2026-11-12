@@ -1,0 +1,50 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh run *)",
+      "Bash(where.exe gh *)",
+      "Bash(sort -k6,7)",
+      "Bash(env)",
+      "Bash(node \"C:\\\\Users\\\\KUMARD~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Kumar-Deepak-PlaywrightFrameworkVantageDashboard\\\\4d184e66-a126-450a-a2ee-35b46ebb02e6\\\\scratchpad\\\\inspect-legend-data.js\")",
+      "Bash(node \"C:\\\\Users\\\\KUMARD~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Kumar-Deepak-PlaywrightFrameworkVantageDashboard\\\\4d184e66-a126-450a-a2ee-35b46ebb02e6\\\\scratchpad\\\\verify-waitforfunction.js\")",
+      "Bash(echo \"EXIT_CODE:$?\")",
+      "Bash(echo \"EXIT_CODE=$?\")",
+      "Bash(echo \"EXIT CODE: $?\")",
+      "Bash(node \"C:\\\\Users\\\\KUMARD~1\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\c--Users-Kumar-Deepak-PlaywrightFrameworkVantageDashboard\\\\4d184e66-a126-450a-a2ee-35b46ebb02e6\\\\scratchpad\\\\check-topic-manager-case-c.js\")",
+      "Bash(npx cucumber-js *)",
+      "mcp__playwright-test",
+      "Bash(npm run *)",
+      "Bash(npx tsc *)",
+      "Bash(npx ts-node *)",
+      "Bash(node -e *)",
+      "Bash(python3 *)",
+      "Bash(python3)",
+      "Bash(date -u *)",
+      "Bash(cat /tmp/*)",
+      "Bash(rm /tmp/*)",
+      "Bash(powershell *)",
+      "Bash(powershell.exe *)",
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(git status *)",
+      "Bash(git stash *)",
+      "Bash(git commit *)",
+      "Bash(git fetch *)",
+      "Bash(git rev-list *)",
+      "Bash(git ls-tree *)",
+      "Skill(update-config)",
+      "Skill(update-config:*)",
+      "Read(//tmp/**)",
+      "mcp__playwright-test__browser_navigate",
+      "Bash(node -e \"try{const s=require\\('./src/auth/storageSession.json'\\);const o=\\(s.origins||[]\\)[0]||{};const t=\\(o.localStorage||[]\\).find\\(x=>x.name==='okta-token-storage'\\);const k=t?\\(JSON.parse\\(t.value\\).accessToken||{}\\):{};const e=k.expiresAt,now=Math.floor\\(Date.now\\(\\)/1000\\),left=e-now;console.log\\(!e?'INVALID:no-token':\\(left>60?'VALID:'+left+'s-left':\\(left>0?'STALE:'+left+'s-left':'EXPIRED:'+\\(-left\\)+'s-ago'\\)\\)\\)}catch\\(err\\){console.log\\('INVALID:'+err.message\\)}\")",
+      "Bash(dir \"C:\\\\Users\\\\Kumar Deepak\\\\PlaywrightFrameworkVantageDashboard\\\\test-results\\\\*.png\" /B /O-D)",
+      "Bash(rm \"c:\\\\Users\\\\Kumar Deepak\\\\PlaywrightFrameworkVantageDashboard\\\\.claude\\\\settings.local.json\")",
+      "Bash(git add *)"
+    ],
+    "additionalDirectories": [
+      "\\tmp",
+      "c:\\Temp",
+      "c:\\Users\\Kumar Deepak\\PlaywrightFrameworkVantageDashboard\\.claude"
+    ]
+  }
+}

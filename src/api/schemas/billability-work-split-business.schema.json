@@ -1,0 +1,80 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "BillabilityWorkSplitBusiness",
+  "type": "object",
+  "required": ["allBillabilityMap", "allBillabilityTotal", "manualAdjustment"],
+  "additionalProperties": false,
+  "definitions": {
+    "treeNode": {
+      "type": "object",
+      "required": [
+        "bd",
+        "cdBillability",
+        "cdChgs",
+        "clientBillability",
+        "clientChgs",
+        "investment",
+        "investmentFund",
+        "other",
+        "theoCapChgs"
+      ],
+      "properties": {
+        "children": {
+          "type": "object",
+          "additionalProperties": { "$ref": "#/definitions/treeNode" }
+        },
+        "bd": { "type": "number" },
+        "cdBillability": { "type": "number" },
+        "cdChgs": { "type": "number" },
+        "clientBillability": { "type": "number" },
+        "clientChgs": { "type": "number" },
+        "investment": { "type": "number" },
+        "investmentFund": { "type": "number" },
+        "other": { "type": "number" },
+        "theoCapChgs": { "type": "number" },
+        "geoRegionKey": { "type": "string" },
+        "paKey": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "totals": {
+      "type": "object",
+      "required": [
+        "bd",
+        "cdBillability",
+        "cdChgs",
+        "clientBillability",
+        "clientChgs",
+        "investment",
+        "investmentFund",
+        "other",
+        "theoCapChgs"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "bd": { "type": "number" },
+        "cdBillability": { "type": "number" },
+        "cdChgs": { "type": "number" },
+        "clientBillability": { "type": "number" },
+        "clientChgs": { "type": "number" },
+        "investment": { "type": "number" },
+        "investmentFund": { "type": "number" },
+        "other": { "type": "number" },
+        "theoCapChgs": { "type": "number" }
+      }
+    }
+  },
+  "properties": {
+    "allBillabilityMap": {
+      "type": "object",
+      "required": ["allGeoMap", "allPaMap"],
+      "additionalProperties": false,
+      "properties": {
+        "allGeoMap": { "$ref": "#/definitions/treeNode" },
+        "allPaMap": { "$ref": "#/definitions/treeNode" }
+      }
+    },
+    "allBillabilityTotal": { "$ref": "#/definitions/totals" },
+    "manualAdjustment": { "$ref": "#/definitions/totals" }
+  }
+}

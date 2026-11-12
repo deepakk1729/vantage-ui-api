@@ -1,0 +1,37 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "UserAccessDetails",
+  "type": "object",
+  "required": [
+    "email",
+    "hrid",
+    "userFullName",
+    "defaultKTRole",
+    "firstName",
+    "userRoles",
+    "ktUser",
+    "defaultUser",
+    "impersonator",
+    "view",
+    "LastName",
+    "ktdAccessible"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "email": { "type": "string" },
+    "hrid": { "type": "string" },
+    "userFullName": { "type": "string" },
+    "defaultKTRole": { "type": "string" },
+    "firstName": { "type": "string" },
+    "userRoles": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "ktUser": { "type": "boolean" },
+    "defaultUser": { "type": "string" },
+    "impersonator": { "type": "boolean" },
+    "view": { "type": "string" },
+    "LastName": { "type": "string" },
+    "ktdAccessible": { "type": "boolean" }
+  }
+}

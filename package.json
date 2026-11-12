@@ -1,0 +1,39 @@
+{
+  "name": "playwrightframeworkvantagedashboard",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "auth": "ts-node src/auth/auth.setup.ts",
+    "sync:agents": "node scripts/sync-agents.js",
+    "sync:agents:check": "node scripts/sync-agents.js --check",
+    "ci:auth": "ts-node src/auth/ci-auth.ts",
+    "test": "playwright test",
+    "test:bdd": "cucumber-js",
+    "test:bdd:superadmin": "cucumber-js -p superadmin features/superadmin",
+    "test:bdd:business-leader": "cucumber-js -p business-leader features/business-leader",
+    "test:bdd:topic-manager": "cucumber-js -p topic-manager features/topic-manager",
+    "test:bdd:team-manager": "cucumber-js -p team-manager features/team-manager",
+    "test:bdd:analyst": "cucumber-js -p analyst features/analyst",
+    "test:bdd:api": "cucumber-js -p all features/api",
+    "test:headed": "playwright test --headed",
+    "test:smoke": "playwright test tests/smoke",
+    "test:dashboard": "playwright test tests/dashboard",
+    "test:auth": "playwright test tests/auth",
+    "report": "playwright show-report",
+    "report:bdd": "start reports/cucumber-report.html"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "@cucumber/cucumber": "^12.9.0",
+    "@playwright/mcp": "^0.0.75",
+    "@playwright/test": "^1.60.0",
+    "@types/node": "^25.9.1",
+    "ajv": "^8.20.0",
+    "ajv-formats": "^3.0.1",
+    "dotenv": "^17.4.2",
+    "ts-node": "^10.9.2"
+  }
+}

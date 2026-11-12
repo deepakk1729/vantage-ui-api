@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Agents for Automated UI Testing</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+  :root{
+    --ink:#0F172A; --ink-soft:#334155; --ink-muted:#64748B;
+    --surface:#F8FAFC; --surface-2:#FFFFFF; --border:#E2E8F0;
+    --planner:#4F46E5; --tcgen:#0EA5E9; --writer:#8B5CF6; --implementer:#F59E0B; --healer:#E11D48;
+    --good:#059669;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 8px 24px rgba(15,23,42,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family: -apple-system, "Segoe UI", Inter, Roboto, Helvetica, Arial, sans-serif;
+    color:var(--ink); background:#0B1120;
+    scroll-snap-type:y mandatory; overflow-y:scroll; height:100vh;
+  }
+  .slide{
+    scroll-snap-align:start;
+    width:100vw; height:100vh;
+    display:flex; flex-direction:column;
+    padding:52px 72px; background:var(--surface);
+    position:relative; overflow:hidden;
+  }
+  .kicker{
+    font-size:12.5px; font-weight:700; letter-spacing:.14em; color:var(--ink-muted);
+    text-transform:uppercase; margin:0 0 6px;
+  }
+  h1{font-size:38px; line-height:1.15; margin:0 0 10px; letter-spacing:-.02em; font-weight:800;}
+  h2{font-size:27px; margin:0 0 4px; letter-spacing:-.01em; font-weight:800;}
+  .sub{font-size:16px; color:var(--ink-soft); margin:0 0 20px; max-width:900px; line-height:1.55;}
+  .pagefoot{
+    position:absolute; bottom:22px; left:72px; right:72px;
+    display:flex; justify-content:space-between; align-items:center;
+    font-size:11.5px; color:var(--ink-muted); letter-spacing:.02em;
+    border-top:1px solid var(--border); padding-top:12px;
+  }
+  code, .mono{font-family:"SF Mono","Cascadia Code",Consolas,monospace; font-size:.92em;}
+
+  /* ---------- SLIDE 1 : HERO (simple intro, no agent names) ---------- */
+  #s1{
+    background:
+      radial-gradient(1100px 500px at 82% -10%, rgba(79,70,229,.35), transparent 60%),
+      radial-gradient(900px 420px at 8% 110%, rgba(225,29,72,.22), transparent 55%),
+      linear-gradient(160deg,#0B1120 0%, #111827 55%, #0B1120 100%);
+    color:#F1F5F9; justify-content:center; align-items:flex-start;
+  }
+  #s1 .kicker{color:#93C5FD;}
+  #s1 h1{font-size:54px; max-width:840px; color:#fff;}
+  #s1 .sub{color:#CBD5E1; font-size:19px; max-width:700px;}
+  .heroline{
+    margin-top:40px; display:flex; align-items:center; gap:16px; color:#94A3B8; font-size:14px;
+  }
+  .heroline .step{display:flex; align-items:center; gap:8px; background:rgba(255,255,255,.05);
+    border:1px solid rgba(255,255,255,.12); padding:9px 14px; border-radius:10px; color:#E2E8F0;}
+  .heroline .arrow{color:#475569;}
+
+  /* ---------- SLIDE 2 : BUILT ON PLAYWRIGHT'S AGENTS ---------- */
+  .foundflow{flex:1; display:flex; align-items:center; justify-content:center;}
+  .chiprow{display:flex; gap:10px; flex-wrap:wrap; margin-top:14px;}
+  .chip2{display:flex; align-items:center; gap:7px; background:var(--surface-2); border:1px solid var(--border);
+    padding:8px 13px; border-radius:99px; font-size:12px; font-weight:600; color:var(--ink-soft); box-shadow:var(--shadow);}
+
+  /* ---------- SLIDE 3 : AGENT CARDS ---------- */
+  .grid5{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; flex:1; align-content:start;}
+  .acard{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:14px;
+    padding:16px 15px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:9px;
+  }
+  .acard .bar{height:5px; border-radius:99px; margin:-16px -15px 4px;}
+  .acard .icowrap{width:38px; height:38px; border-radius:10px; display:flex; align-items:center; justify-content:center;}
+  .acard .name{font-weight:800; font-size:12px; font-family:"SF Mono","Cascadia Code",Consolas,monospace;
+    letter-spacing:-.01em; line-height:1.3; word-break:break-word;}
+  .acard .trigger{font-size:11px; color:var(--ink-muted); font-weight:700; text-transform:uppercase; letter-spacing:.03em;}
+  .acard .desc{font-size:12.4px; color:var(--ink-soft); line-height:1.55; flex:1;}
+  .acard .io{font-size:11px; color:var(--ink-muted); border-top:1px dashed var(--border); padding-top:8px; line-height:1.6;}
+  .acard .io b{color:var(--ink);}
+
+  /* ---------- SLIDE 3 : FLOW DIAGRAM ---------- */
+  .flowbox{flex:1; display:flex; align-items:stretch; justify-content:center;}
+
+  /* ---------- SLIDE 4 : HOW MCP WORKS ---------- */
+  .mcp-flow{display:flex; align-items:center; justify-content:center; gap:0; margin:14px 0 22px;}
+  .mnode{
+    background:var(--surface-2); border:2px solid var(--border); border-radius:16px;
+    padding:20px 26px; text-align:center; box-shadow:var(--shadow); min-width:170px;
+  }
+  .mnode .ic{font-size:30px; margin-bottom:8px;}
+  .mnode .t{font-weight:800; font-size:14px; margin-bottom:3px;}
+  .mnode .d{font-size:11.5px; color:var(--ink-muted); line-height:1.4;}
+  .mconn{flex:0 0 70px; display:flex; align-items:center; justify-content:center; position:relative;}
+  .mconn .line{width:100%; height:2px; background:repeating-linear-gradient(90deg,#94A3B8 0 6px, transparent 6px 11px);}
+  .mconn .lbl{position:absolute; top:-22px; font-size:10px; color:var(--ink-muted); white-space:nowrap; font-weight:700;}
+  .grid4steps{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; flex:1;}
+  .mstep{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:16px; box-shadow:var(--shadow);}
+  .mstep .num{width:26px; height:26px; border-radius:8px; background:#EEF2FF; color:#4F46E5; font-weight:800;
+    display:flex; align-items:center; justify-content:center; font-size:13px; margin-bottom:8px;}
+  .mstep h4{margin:0 0 4px; font-size:13px;}
+  .mstep p{margin:0; font-size:11.8px; color:var(--ink-soft); line-height:1.5;}
+
+  /* ---------- SLIDE 5 : GUARDRAILS (roomy) ---------- */
+  .grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-bottom:18px;}
+  .gcard{
+    background:var(--surface-2); border:1px solid var(--border); border-radius:14px;
+    padding:18px; box-shadow:var(--shadow); display:flex; flex-direction:column; gap:8px;
+  }
+  .gcard .emoji{font-size:22px;}
+  .gcard h3{margin:0; font-size:14px; font-weight:800;}
+  .gcard p{margin:0; font-size:12.5px; color:var(--ink-soft); line-height:1.55;}
+  .safety{
+    background:#0B1120; border-radius:14px; padding:18px 22px; color:#E2E8F0;
+    display:flex; align-items:center; gap:18px; flex:1;
+  }
+  .safety h3{color:#fff; font-size:14.5px; margin:0 0 3px;}
+  .safety .note{font-size:12px; color:#94A3B8; max-width:280px; line-height:1.5;}
+  .sstep{display:flex; align-items:center; gap:10px; flex:1;}
+  .sbox{
+    flex:1; text-align:center; background:rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.14);
+    border-radius:10px; padding:10px 8px;
+  }
+  .sbox .t{font-size:11.5px; font-weight:800; color:#fff; margin-bottom:3px;}
+  .sbox .d{font-size:10.5px; color:#94A3B8; line-height:1.4;}
+  .sarrow{color:#475569; font-size:16px;}
+
+  /* ---------- SLIDE 6 : COMPARE + METRICS ---------- */
+  .compare{display:flex; flex-direction:column; gap:9px; margin-bottom:16px;}
+  .crow{display:grid; grid-template-columns:150px 1fr 34px 1fr; align-items:center; gap:10px;}
+  .clabel{font-size:12px; font-weight:800; color:var(--ink); text-align:right;}
+  .cbox{padding:10px 13px; border-radius:10px; font-size:12.3px; line-height:1.4;}
+  .cbox.old{background:#FEF2F2; color:#7F1D1D; border:1px solid #FECACA;}
+  .cbox.new{background:#F0FDF4; color:#14532D; border:1px solid #BBF7D0; font-weight:600;}
+  .cmid{text-align:center; color:#94A3B8; font-size:16px;}
+  .metricrow{display:grid; grid-template-columns:1fr 1fr; gap:16px;}
+  .mcard{background:var(--surface-2); border:1px solid var(--border); border-radius:14px; padding:15px 16px; box-shadow:var(--shadow);}
+  .mcard h4{margin:0 0 2px; font-size:12.5px; font-weight:800;}
+  .tag2{font-size:10px; font-weight:700; color:#fff; padding:2px 8px; border-radius:99px; display:inline-block; margin-bottom:8px;}
+  .stat{display:flex; align-items:baseline; gap:6px; margin:6px 0;}
+  .stat .n{font-size:20px; font-weight:800; letter-spacing:-.02em;}
+  .stat .l{font-size:11px; color:var(--ink-muted);}
+  .mcard .foot{font-size:10.8px; color:var(--ink-muted); margin-top:7px; line-height:1.5; border-top:1px dashed var(--border); padding-top:7px;}
+
+  /* nav dots */
+  #dots{position:fixed; right:22px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:10px; z-index:50;}
+  #dots button{width:9px; height:9px; border-radius:50%; border:none; background:#94A3B8; opacity:.45; cursor:pointer; padding:0;}
+  #dots button.active{opacity:1; background:#4F46E5; transform:scale(1.3);}
+  @media print{
+    body{overflow:visible; height:auto;}
+    .slide{page-break-after:always; height:100vh;}
+    #dots{display:none;}
+  }
+</style>
+</head>
+<body>
+
+<div id="dots"></div>
+
+<!-- ============ SLIDE 1 — HERO (simple intro) ============ -->
+<section class="slide" id="s1">
+  <div class="kicker">AI Agents · Automated Testing</div>
+  <h1>Teaching AI Agents to<br>Write &amp; Fix Their Own Tests</h1>
+  <p class="sub">A short walkthrough of how a small team of specialized AI agents turns a plain-English
+  test idea into working, browser-verified automated tests — and keeps them working over time,
+  without a person re-explaining the app every single time.</p>
+
+  <div class="heroline">
+    <div class="step">💡 Idea</div>
+    <div class="arrow">→</div>
+    <div class="step">📝 Test written</div>
+    <div class="arrow">→</div>
+    <div class="step">⚙️ Code built</div>
+    <div class="arrow">→</div>
+    <div class="step">🔧 Self-fixed</div>
+  </div>
+
+  <div class="pagefoot" style="color:#64748B; border-top-color:rgba(255,255,255,.12);">
+    <span>Built on Playwright + Cucumber (BDD)</span><span>1 / 7</span>
+  </div>
+</section>
+
+<!-- ============ SLIDE 2 — BUILT ON PLAYWRIGHT'S OWN AGENT CONCEPT ============ -->
+<section class="slide" id="s2">
+  <div class="kicker">The Foundation</div>
+  <h2>Built on Playwright's own agent concept — made more advanced</h2>
+  <p class="sub">Playwright already ships with three built-in agent roles that explore an app, write tests, and fix failures — all using the same MCP connection. This project keeps that core idea and turns it into a more specialized, four-agent pipeline built for BDD-style testing.</p>
+
+  <div class="foundflow">
+    <svg viewBox="0 0 1180 300" width="100%" height="100%" style="max-width:1180px">
+      <defs>
+        <marker id="arrF" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#64748B"/></marker>
+      </defs>
+
+      <text x="150" y="14" text-anchor="middle" font-size="10" font-weight="700" letter-spacing="1" fill="#94A3B8">PLAYWRIGHT'S BUILT-IN AGENTS</text>
+
+      <!-- top: stock agents -->
+      <rect x="20" y="26" width="260" height="66" rx="12" fill="#F1F5F9" stroke="#94A3B8"/>
+      <text x="150" y="54" text-anchor="middle" font-size="13.5" font-weight="800" fill="#334155">Planner</text>
+      <text x="150" y="72" text-anchor="middle" font-size="10" fill="#64748B">explores the app, writes a plan</text>
+
+      <rect x="570" y="26" width="260" height="66" rx="12" fill="#F1F5F9" stroke="#94A3B8"/>
+      <text x="700" y="54" text-anchor="middle" font-size="13.5" font-weight="800" fill="#334155">Generator</text>
+      <text x="700" y="72" text-anchor="middle" font-size="10" fill="#64748B">writes the test code</text>
+
+      <rect x="900" y="26" width="260" height="66" rx="12" fill="#F1F5F9" stroke="#94A3B8"/>
+      <text x="1030" y="54" text-anchor="middle" font-size="13.5" font-weight="800" fill="#334155">Healer</text>
+      <text x="1030" y="72" text-anchor="middle" font-size="10" fill="#64748B">fixes failing tests</text>
+
+      <!-- connecting arrows -->
+      <path d="M150,92 L150,198" stroke="#64748B" stroke-width="2" marker-end="url(#arrF)"/>
+      <path d="M700,92 L750,198" stroke="#64748B" stroke-width="2" marker-end="url(#arrF)"/>
+      <path d="M1030,92 L1040,198" stroke="#64748B" stroke-width="2" marker-end="url(#arrF)"/>
+      <text x="735" y="140" text-anchor="start" font-size="9.5" fill="#64748B" font-style="italic">customized &amp; extended into</text>
+
+      <!-- bottom: 4 custom agents -->
+      <rect x="20" y="200" width="260" height="70" rx="12" fill="#EEF2FF" stroke="#4F46E5"/>
+      <text x="150" y="224" text-anchor="middle" font-size="11" font-weight="800" fill="#3730A3" font-family="monospace">ui-test-planner</text>
+      <text x="150" y="242" text-anchor="middle" font-size="9.5" fill="#4338CA">same idea, kept close to</text>
+      <text x="150" y="255" text-anchor="middle" font-size="9.5" fill="#4338CA">the original</text>
+
+      <rect x="320" y="200" width="260" height="70" rx="12" fill="#E0F2FE" stroke="#0EA5E9"/>
+      <rect x="514" y="196" width="58" height="18" rx="9" fill="#0EA5E9"/>
+      <text x="543" y="209" text-anchor="middle" font-size="9" font-weight="800" fill="#fff">NEW</text>
+      <text x="450" y="228" text-anchor="middle" font-size="11" font-weight="800" fill="#075985" font-family="monospace">ui-tc-generator</text>
+      <text x="450" y="246" text-anchor="middle" font-size="9.5" fill="#0369A1">writes the test case itself —</text>
+      <text x="450" y="259" text-anchor="middle" font-size="9.5" fill="#0369A1">no stock equivalent for this</text>
+
+      <rect x="620" y="200" width="260" height="70" rx="12" fill="#F3E8FF" stroke="#8B5CF6"/>
+      <rect x="814" y="196" width="58" height="18" rx="9" fill="#8B5CF6"/>
+      <text x="843" y="209" text-anchor="middle" font-size="9" font-weight="800" fill="#fff">MERGED</text>
+      <text x="750" y="228" text-anchor="middle" font-size="11" font-weight="800" fill="#5B21B6" font-family="monospace">ui-feature-builder</text>
+      <text x="750" y="246" text-anchor="middle" font-size="9.5" fill="#6D28D9">test case → script, page objects</text>
+      <text x="750" y="259" text-anchor="middle" font-size="9.5" fill="#6D28D9">&amp; automation code, in one pass</text>
+
+      <rect x="920" y="200" width="240" height="70" rx="12" fill="#FFE4E6" stroke="#E11D48"/>
+      <text x="1040" y="224" text-anchor="middle" font-size="11" font-weight="800" fill="#9F1239" font-family="monospace">ui-test-healer</text>
+      <text x="1040" y="242" text-anchor="middle" font-size="9.5" fill="#BE123C">same idea, plus a shared</text>
+      <text x="1040" y="255" text-anchor="middle" font-size="9.5" fill="#BE123C">memory file and a safety gate</text>
+    </svg>
+  </div>
+
+  <div class="chiprow">
+    <div class="chip2">📓 Shared memory across runs</div>
+    <div class="chip2">🔒 Session safety gate</div>
+    <div class="chip2">🥒 Native BDD / Cucumber output</div>
+    <div class="chip2">🎯 Deep-then-light exploration</div>
+    <div class="chip2">🧩 Per-role isolation</div>
+  </div>
+
+  <div class="pagefoot"><span>Still the same MCP foundation underneath — just four specialized roles instead of three general ones</span><span>2 / 7</span></div>
+</section>
+
+<!-- ============ SLIDE 3 — THE FIVE AGENTS ============ -->
+<section class="slide" id="s3">
+  <div class="kicker">The Cast</div>
+  <h2>What each agent actually does</h2>
+  <p class="sub">Four narrow specialists, not one do-everything assistant — each has one clear job, one clear trigger, and one clear output.</p>
+
+  <div class="grid5">
+    <div class="acard">
+      <div class="bar" style="background:var(--planner)"></div>
+      <div class="icowrap" style="background:#EEF2FF">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--planner)" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+      </div>
+      <div class="name">ui-test-planner</div>
+      <div class="trigger">Runs once, at the start</div>
+      <div class="desc">Looks at the whole app once and writes down everything it finds — pages, buttons, filters. Becomes the shared notes every other agent relies on.</div>
+      <div class="io"><b>Gives it:</b> the app<br><b>Gets back:</b> shared notes file</div>
+    </div>
+
+    <div class="acard">
+      <div class="bar" style="background:var(--tcgen)"></div>
+      <div class="icowrap" style="background:#E0F2FE">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--tcgen)" stroke-width="2"><path d="M4 6h16M4 12h10M4 18h13"/><circle cx="20" cy="18" r="2"/></svg>
+      </div>
+      <div class="name">ui-tc-generator</div>
+      <div class="trigger">A new feature has no test case yet</div>
+      <div class="desc">Tries the new feature out live in the browser first, then writes a clear, well-structured test case for it.</div>
+      <div class="io"><b>Gives it:</b> a rough description<br><b>Gets back:</b> a proper test case</div>
+    </div>
+
+    <div class="acard">
+      <div class="bar" style="background:var(--writer)"></div>
+      <div class="icowrap" style="background:#F3E8FF">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--writer)" stroke-width="2"><path d="M4 19l14-14 3 3-14 14H4v-3z"/></svg>
+      </div>
+      <div class="name">ui-feature-builder</div>
+      <div class="trigger">A test case is ready</div>
+      <div class="desc">Builds the whole product in one pass — test script, page objects and working automation code. Explores each part of the live app once, and uses that single look for both the script and the code.</div>
+      <div class="io"><b>Gives it:</b> a test case (file or name)<br><b>Gets back:</b> script + code, ready to run</div>
+    </div>
+
+    <div class="acard">
+      <div class="bar" style="background:var(--healer)"></div>
+      <div class="icowrap" style="background:#FFE4E6">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--healer)" stroke-width="2"><path d="M12 3l2.5 5 5.5.8-4 3.9.9 5.5L12 15.9 7.1 18.2l.9-5.5-4-3.9 5.5-.8z"/></svg>
+      </div>
+      <div class="name">ui-test-healer</div>
+      <div class="trigger">A test starts failing</div>
+      <div class="desc">Investigates as deeply as it needs to — no shortcuts — finds the real cause, applies the smallest fix, and confirms it actually works.</div>
+      <div class="io"><b>Gives it:</b> a failing test<br><b>Gets back:</b> a working test again</div>
+    </div>
+  </div>
+
+  <div class="pagefoot"><span>Each agent stays in its own lane — no overlap, no guesswork</span><span>3 / 7</span></div>
+</section>
+
+<!-- ============ SLIDE 4 — FLOW DIAGRAM ============ -->
+<section class="slide" id="s4">
+  <div class="kicker">The Wiring</div>
+  <h2><span class="mono" style="font-weight:800;">plan.md</span> connects every agent</h2>
+  <p class="sub">Instead of each agent starting from zero, they all read from — and write into — the same shared file: <span class="mono">plan.md</span>. What one agent learns today, another agent uses tomorrow.</p>
+
+  <div class="flowbox">
+    <svg viewBox="0 0 1180 470" width="100%" height="100%" style="max-width:1180px">
+      <defs>
+        <marker id="arrH" markerWidth="9" markerHeight="9" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 Z" fill="#334155"/></marker>
+        <marker id="arrHeavy" markerWidth="10" markerHeight="10" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#8B5CF6"/></marker>
+        <marker id="arrHeal" markerWidth="10" markerHeight="10" refX="8" refY="4.5" orient="auto"><path d="M0,0 L9,4.5 L0,9 Z" fill="#E11D48"/></marker>
+      </defs>
+
+      <!-- shared notebook hub -->
+      <rect x="470" y="185" width="240" height="100" rx="14" fill="#0B1120"/>
+      <text x="590" y="222" text-anchor="middle" fill="#fff" font-size="17" font-weight="800" font-family="monospace">plan.md</text>
+      <text x="590" y="242" text-anchor="middle" fill="#FDE68A" font-size="10.5" font-weight="700">EVERYTHING LEARNED, SO FAR</text>
+      <text x="590" y="260" text-anchor="middle" fill="#94A3B8" font-size="10">what buttons look like, what they do,</text>
+      <text x="590" y="275" text-anchor="middle" fill="#94A3B8" font-size="10">what changed since last time</text>
+
+      <!-- planner top -->
+      <rect x="470" y="20" width="240" height="52" rx="10" fill="#EEF2FF" stroke="#4F46E5"/>
+      <text x="590" y="42" text-anchor="middle" font-size="11" font-weight="800" fill="#3730A3" font-family="monospace">ui-test-planner</text>
+      <text x="590" y="58" text-anchor="middle" font-size="10" fill="#4338CA">one-time full app scan</text>
+      <line x1="590" y1="72" x2="590" y2="183" stroke="#4F46E5" stroke-width="2.5" marker-end="url(#arrH)"/>
+
+      <!-- tc-generator + feature-builder (left) -->
+      <rect x="20" y="150" width="220" height="52" rx="10" fill="#E0F2FE" stroke="#0EA5E9"/>
+      <text x="130" y="172" text-anchor="middle" font-size="11" font-weight="800" fill="#075985" font-family="monospace">ui-tc-generator</text>
+      <text x="130" y="188" text-anchor="middle" font-size="9.5" fill="#0369A1">rough idea → test case</text>
+
+      <rect x="20" y="235" width="220" height="70" rx="10" fill="#F3E8FF" stroke="#8B5CF6"/>
+      <text x="130" y="257" text-anchor="middle" font-size="11" font-weight="800" fill="#5B21B6" font-family="monospace">ui-feature-builder</text>
+      <text x="130" y="273" text-anchor="middle" font-size="9.5" fill="#6D28D9">explores once, then writes</text>
+      <text x="130" y="287" text-anchor="middle" font-size="9.5" fill="#6D28D9">script + page objects + code</text>
+
+      <path d="M130,202 L130,235" stroke="#94A3B8" stroke-width="1.6" marker-end="url(#arrH)"/>
+      <text x="145" y="222" font-size="8.5" fill="#64748B">feeds into</text>
+
+      <!-- builder <-> notebook -->
+      <path d="M240,262 L468,238" stroke="#8B5CF6" stroke-width="3" marker-end="url(#arrHeavy)"/>
+      <text x="300" y="230" font-size="9.5" font-weight="700" fill="#6D28D9">writes down everything found</text>
+      <path d="M468,280 L300,290" stroke="#94A3B8" stroke-width="1.6" stroke-dasharray="3,3" marker-end="url(#arrH)"/>
+      <text x="300" y="303" font-size="9" fill="#64748B">checks the notes first</text>
+
+<!-- run tests (right) + healer (bottom right) -->
+      <rect x="940" y="235" width="220" height="70" rx="10" fill="#F1F5F9" stroke="#94A3B8"/>
+      <text x="1050" y="262" text-anchor="middle" font-size="12" font-weight="800" fill="#334155">Run the Tests</text>
+      <text x="1050" y="279" text-anchor="middle" font-size="9.5" fill="#64748B">the automated test suite</text>
+      <text x="1050" y="294" text-anchor="middle" font-size="9.5" fill="#065F46" font-weight="700">passes → done ✓</text>
+
+      <path d="M130,305 L130,350 L1000,350 L1000,307" stroke="#334155" stroke-width="1.6" fill="none" marker-end="url(#arrH)"/>
+      <text x="330" y="343" text-anchor="middle" font-size="9.5" fill="#475569">hands over: feature file + page objects + step definitions</text>
+
+      <rect x="940" y="405" width="220" height="58" rx="10" fill="#FFE4E6" stroke="#E11D48"/>
+      <text x="1050" y="426" text-anchor="middle" font-size="11" font-weight="800" fill="#9F1239" font-family="monospace">ui-test-healer</text>
+      <text x="1050" y="442" text-anchor="middle" font-size="9.5" fill="#BE123C">digs as deep as it takes,</text>
+      <text x="1050" y="456" text-anchor="middle" font-size="9.5" fill="#BE123C">fixes it, re-runs, loops back</text>
+
+      <path d="M1100,305 L1100,403" stroke="#E11D48" stroke-width="2" marker-end="url(#arrHeal)"/>
+      <text x="1110" y="360" font-size="9.5" font-weight="700" fill="#9F1239">fails</text>
+      <path d="M938,432 Q640,430 590,287" stroke="#E11D48" stroke-width="2.4" fill="none" marker-end="url(#arrHeal)"/>
+      <text x="925" y="456" text-anchor="end" font-size="9.5" font-weight="700" fill="#9F1239">reads the notes first, updates them</text>
+      <text x="925" y="469" text-anchor="end" font-size="9.5" font-weight="700" fill="#9F1239">if it finds something new</text>
+    </svg>
+  </div>
+
+  <div class="pagefoot"><span>Thick arrows = deep exploring · thin/dashed = a quick check, or an update only when needed</span><span>4 / 7</span></div>
+</section>
+
+<!-- ============ SLIDE 5 — HOW MCP WORKS (right after the architecture) ============ -->
+<section class="slide" id="s5">
+  <div class="kicker">Under The Hood</div>
+  <h2>How does an AI agent actually "see" the app?</h2>
+  <p class="sub">Through something called <b>MCP</b> — think of it as a remote control that connects the agent to a real, running browser, so it can look at and interact with the actual app instead of guessing.</p>
+
+  <div class="mcp-flow">
+    <div class="mnode">
+      <div class="ic">🤖</div>
+      <div class="t">The Agent</div>
+      <div class="d">Decides what to do next</div>
+    </div>
+    <div class="mconn"><span class="lbl">sends a command</span><div class="line"></div></div>
+    <div class="mnode" style="border-color:#4F46E5;">
+      <div class="ic">🔌</div>
+      <div class="t">MCP</div>
+      <div class="d">The remote-control link in between</div>
+    </div>
+    <div class="mconn"><span class="lbl">controls a real browser</span><div class="line"></div></div>
+    <div class="mnode">
+      <div class="ic">🖥️</div>
+      <div class="t">The Real App</div>
+      <div class="d">Actually opens, clicks, and reads back what's on screen</div>
+    </div>
+  </div>
+
+  <div class="grid4steps">
+    <div class="mstep"><div class="num">1</div><h4>Open the page</h4><p>The agent tells MCP to open a specific screen in the app — just like a person typing a web address.</p></div>
+    <div class="mstep"><div class="num">2</div><h4>Look around</h4><p>MCP reads back exactly what's on screen — button names, labels, colors — as real, current information.</p></div>
+    <div class="mstep"><div class="num">3</div><h4>Interact</h4><p>The agent can click, type, hover, or select — the same actions a real user would make.</p></div>
+    <div class="mstep"><div class="num">4</div><h4>Double-check</h4><p>After acting, it looks again to confirm what actually happened — not what it expected to happen.</p></div>
+  </div>
+
+  <p style="font-size:12.5px; color:var(--ink-muted); margin-top:16px; max-width:920px; line-height:1.5;">
+    Why this matters: every label, button name, and behavior that ends up in the final test code was
+    <b>actually seen live</b> — not guessed. That's what makes these tests trustworthy. (One quirk: this
+    connection starts up quietly and can take 15–30 seconds with no visible output — that's normal, not frozen.)
+  </p>
+
+  <div class="pagefoot"><span>MCP = the agent's eyes and hands on the real, running app</span><span>5 / 7</span></div>
+</section>
+
+<!-- ============ SLIDE 6 — GUARDRAILS (roomy) ============ -->
+<section class="slide" id="s6">
+  <div class="kicker">Guardrails</div>
+  <h2>What keeps this safe to run on its own</h2>
+  <p class="sub">Four simple rules keep the agents reliable — plus one hard safety check before any of them ever touches a real browser.</p>
+
+  <div class="grid4">
+    <div class="gcard">
+      <div class="emoji">📓</div>
+      <h3>One shared memory</h3>
+      <p>Everyone reads and writes the same notes file. A fix made in one place helps everywhere else, automatically.</p>
+    </div>
+    <div class="gcard">
+      <div class="emoji">🎯</div>
+      <h3>Right amount of checking</h3>
+      <p>One agent explores deeply, once. The next agent only needs a quick recheck — unless something actually changed.</p>
+    </div>
+    <div class="gcard">
+      <div class="emoji">⚡</div>
+      <h3>Efficient by default</h3>
+      <p>Agents read only what's relevant and ask the browser only what's needed — same thoroughness, far less waste.</p>
+    </div>
+    <div class="gcard">
+      <div class="emoji">🚧</div>
+      <h3>No cross-wires</h3>
+      <p>Different user types get their own separate test files, so similarly-worded steps never get mixed up.</p>
+    </div>
+  </div>
+
+  <div class="safety">
+    <div style="flex:0 0 210px;">
+      <h3>🔒 Session safety check</h3>
+      <div class="note">Runs before any agent opens a browser. Without it, a logged-out session can make the browser hang forever, waiting on a login screen no one is watching.</div>
+    </div>
+    <div class="sstep">
+      <div class="sbox"><div class="t">1 · Check</div><div class="d">Is the login still valid right now?</div></div>
+      <div class="sarrow">→</div>
+      <div class="sbox"><div class="t">2 · Refresh, if needed</div><div class="d">Agent logs back in by itself — no one has to do it manually</div></div>
+      <div class="sarrow">→</div>
+      <div class="sbox"><div class="t">3 · Go, or stop safely</div><div class="d">Proceeds only once confirmed — otherwise it stops and reports why</div></div>
+    </div>
+  </div>
+
+  <div class="pagefoot"><span>The same safety check runs every single time — never skipped, never assumed</span><span>6 / 7</span></div>
+</section>
+
+<!-- ============ SLIDE 7 — WHY AGENTS + METRICS ============ -->
+<section class="slide" id="s7">
+  <div class="kicker">The Payoff</div>
+  <h2>Why specialized agents, instead of one general AI chat?</h2>
+
+  <div class="compare">
+    <div class="crow"><div class="clabel">Memory</div><div class="cbox old">Forgets everything once the conversation ends</div><div class="cmid">→</div><div class="cbox new">Keeps a shared notes file that grows over time</div></div>
+    <div class="crow"><div class="clabel">Consistency</div><div class="cbox old">Might skip a step when rushed</div><div class="cmid">→</div><div class="cbox new">Always follows the same careful checklist</div></div>
+    <div class="crow"><div class="clabel">Safety</div><div class="cbox old">One stuck login screen can freeze everything</div><div class="cmid">→</div><div class="cbox new">Checks its own login before ever opening a browser</div></div>
+    <div class="crow"><div class="clabel">Visibility</div><div class="cbox old">No idea how long or costly it really was</div><div class="cmid">→</div><div class="cbox new">Automatically records the time for every run</div></div>
+    <div class="crow"><div class="clabel">Recovery</div><div class="cbox old">Starts over explaining context when something breaks</div><div class="cmid">→</div><div class="cbox new">A dedicated fixer investigates and resolves it on its own</div></div>
+  </div>
+
+  <div class="metricrow">
+    <div class="mcard">
+      <span class="tag2" style="background:#334155">MEASURED — ONE REAL FEATURE, LIVE RUN</span>
+      <h4>Before the latest improvement</h4>
+      <div class="stat"><span class="n">~14 min</span><span class="l">start to fully working, browser-verified code</span></div>
+      <div class="stat"><span class="n">90</span><span class="l">agent actions taken, zero manual coding</span></div>
+      <div class="foot">Two agents, back to back — one wrote the test script, the other built the working code.</div>
+    </div>
+    <div class="mcard">
+      <span class="tag2" style="background:#8B5CF6">RECENT IMPROVEMENT</span>
+      <h4>Two agents merged into one Builder</h4>
+      <div class="stat"><span class="n">1×</span><span class="l">login check, browser session and live exploration, instead of one per agent</span></div>
+      <div class="stat"><span class="n">↓</span><span class="l">no hand-off between script and code — next run will show the new number</span></div>
+      <div class="foot">Deliberately not showing a made-up percentage — the whole point of this system is to measure, not guess.</div>
+    </div>
+  </div>
+
+  <div class="pagefoot"><span>AI Agents for Automated Testing</span><span>7 / 7</span></div>
+</section>
+
+<script>
+  const slides = [...document.querySelectorAll('.slide')];
+  const dotsWrap = document.getElementById('dots');
+  slides.forEach((s)=>{
+    const b = document.createElement('button');
+    b.title = s.id;
+    b.addEventListener('click', ()=> s.scrollIntoView({behavior:'smooth'}));
+    dotsWrap.appendChild(b);
+  });
+  const dots = [...dotsWrap.children];
+  const io = new IntersectionObserver((entries)=>{
+    entries.forEach(e=>{
+      if(e.isIntersecting){
+        const idx = slides.indexOf(e.target);
+        dots.forEach(d=>d.classList.remove('active'));
+        dots[idx].classList.add('active');
+      }
+    });
+  }, {threshold:.6});
+  slides.forEach(s=>io.observe(s));
+
+  document.addEventListener('keydown', (e)=>{
+    const current = slides.findIndex(s=>{
+      const r = s.getBoundingClientRect();
+      return r.top >= -50 && r.top < 50;
+    });
+    let idx = current === -1 ? 0 : current;
+    if(e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === 'PageDown'){
+      idx = Math.min(slides.length-1, idx+1); slides[idx].scrollIntoView({behavior:'smooth'}); e.preventDefault();
+    } else if(e.key === 'ArrowUp' || e.key === 'ArrowLeft' || e.key === 'PageUp'){
+      idx = Math.max(0, idx-1); slides[idx].scrollIntoView({behavior:'smooth'}); e.preventDefault();
+    }
+  });
+</script>
+</body>
+</html>
